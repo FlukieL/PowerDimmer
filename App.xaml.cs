@@ -26,7 +26,44 @@ namespace PowerDimmer
 
         public App()
         {
-            settings = new ConfigurationBuilder<ISettings>().UseJsonFile("settings.json").Build();
+            // Surface any unhandled exception as a message box so the app never
+            // silently disappears.
+            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+            {
+                System.Windows.MessageBox.Show(
+                    e.ExceptionObject?.ToString(),
+                    "PowerDimmer – Unhandled Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            };
+            DispatcherUnhandledException += (s, e) =>
+            {
+                System.Windows.MessageBox.Show(
+                    e.Exception?.ToString(),
+                    "PowerDimmer – Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+                e.Handled = true;
+            };
+
+            // Store settings.json in %APPDATA%\PowerDimmer\ so it always
+            // lives on a local NTFS volume. Config.Net.Json uses File.Replace()
+            // for atomic writes, which fails on network/virtual/mapped drives.
+            var appDataDir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "PowerDimmer");
+            System.IO.Directory.CreateDirectory(appDataDir);
+            var settingsPath = System.IO.Path.Combine(appDataDir, "settings.json");
+
+            // Config.Net.Json uses File.Replace() for atomic writes, which
+            // requires the destination file to already exist. Pre-create it
+            // with an empty JSON object so the first write doesn't throw.
+            if (!System.IO.File.Exists(settingsPath))
+            {
+                System.IO.File.WriteAllText(settingsPath, "{}");
+            }
+
+            settings = new ConfigurationBuilder<ISettings>().UseJsonFile(settingsPath).Build();
             settings.DimmingEnabled = settings.ActiveOnLaunch;
             settings.PropertyChanged += (s, e) =>
             {
@@ -60,8 +97,26 @@ namespace PowerDimmer
         {
             curFgHwnd = Win32.GetForegroundWindow();
 
+            var settingsWindow = new SettingsWindow(settings);
+            // Show the window on launch unless the user has opted to start minimized
+            if (!settings.StartMinimized)
+            {
+                settingsWindow.Show();
+            }
+
             var iconController = new NotifyIconController(settings);
             iconController.ExitClicked += () => Shutdown();
+            iconController.OpenSettingsClicked += () =>
+            {
+                settingsWindow.Show();
+                settingsWindow.Activate();
+            };
+            // Also open settings on double-click of the tray icon
+            iconController.NotifyIcon.DoubleClick += (_, _) =>
+            {
+                settingsWindow.Show();
+                settingsWindow.Activate();
+            };
             Exit += (e, s) =>
             {
                 iconController.NotifyIcon.Visible = false;
@@ -335,5 +390,14 @@ namespace PowerDimmer
 
         [Option(Alias = "windowShadeEnabled", DefaultValue = true)]
         bool WindowShadeEnabled { get; set; }
+
+        [Option(Alias = "startMinimized", DefaultValue = false)]
+        bool StartMinimized { get; set; }
+
+        [Option(Alias = "minimizeToTray", DefaultValue = true)]
+        bool MinimizeToTray { get; set; }
+
+        [Option(Alias = "closeToTray", DefaultValue = true)]
+        bool CloseToTray { get; set; }
     }
 }

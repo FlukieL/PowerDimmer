@@ -1,0 +1,125 @@
+<Window x:Class="PowerDimmer.SettingsWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="PowerDimmer Settings" Width="460" Height="640" MinWidth="400" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" Background="#1E1E2E" FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style x:Key="CB" TargetType="CheckBox"><Setter Property="Foreground" Value="#CDD6F4"/><Setter Property="FontSize" Value="13"/><Setter Property="Margin" Value="0,4"/><Setter Property="Cursor" Value="Hand"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+        <Style x:Key="Hint" TargetType="TextBlock"><Setter Property="Foreground" Value="#6C7086"/><Setter Property="FontSize" Value="11"/><Setter Property="Margin" Value="20,0,0,5"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+        <Style x:Key="H" TargetType="TextBlock"><Setter Property="Foreground" Value="#89B4FA"/><Setter Property="FontSize" Value="10"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,14,0,6"/></Style>
+        <Style x:Key="Sep" TargetType="Separator"><Setter Property="Background" Value="#313244"/><Setter Property="Margin" Value="0,6"/><Setter Property="Height" Value="1"/></Style>
+        <Style x:Key="Btn" TargetType="Button">
+            <Setter Property="Background" Value="#89B4FA"/><Setter Property="Foreground" Value="#1E1E2E"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Padding" Value="20,7"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#B4BEFE"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="#74C7EC"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="Sldr" TargetType="Slider">
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto" MinHeight="{TemplateBinding MinHeight}"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Track x:Name="PART_Track" Grid.Row="1"><Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="#89B4FA" Height="4" CornerRadius="2"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseRepeatButton><Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="#45475A" Height="4" CornerRadius="2"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseRepeatButton><Track.Thumb><Thumb><Thumb.Template><ControlTemplate TargetType="Thumb"><Ellipse Width="16" Height="16" Fill="#89B4FA" Stroke="#1E1E2E" StrokeThickness="2"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb></Track></Grid></ControlTemplate></Setter.Value></Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="28,20,28,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="&#x26A1;" FontSize="20" Foreground="#F9E2AF" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <StackPanel>
+                    <TextBlock Text="PowerDimmer" FontSize="18" FontWeight="Bold" Foreground="#CDD6F4"/>
+                    <TextBlock Text="Settings" FontSize="11" Foreground="#6C7086"/>
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#45475A" Margin="0,0,6,0"/>
+                <TextBlock x:Name="StatusText" Text="Dimming off" Foreground="#6C7086" VerticalAlignment="Center" FontSize="11"/>
+            </StackPanel>
+        </Grid>
+        <Separator Grid.Row="0" VerticalAlignment="Bottom" Background="#313244" Margin="0,46,0,0"/>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0" PanningMode="VerticalOnly">
+            <StackPanel>
+
+                <TextBlock Style="{StaticResource H}" Text="DIMMING"/>
+                <CheckBox Style="{StaticResource CB}" Content="Dimming active" IsChecked="{Binding DimmingEnabled, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Dims all windows except the focused one. Toggle with Ctrl + Win + Alt + D."/>
+                <CheckBox Style="{StaticResource CB}" Content="Dim taskbar" IsChecked="{Binding DimTaskbar, Mode=TwoWay}" Margin="0,8,0,4">
+                    <CheckBox.ToolTip>
+                        <ToolTip><TextBlock Text="Keeps the taskbar below the dim overlay. May have no effect on Windows 11 due to taskbar rendering changes." MaxWidth="280" TextWrapping="Wrap"/></ToolTip>
+                    </CheckBox.ToolTip>
+                </CheckBox>
+                <CheckBox Style="{StaticResource CB}" Content="Dim all monitors" IsChecked="{Binding MultiMonitorDimming, Mode=TwoWay}" Margin="0,4"/>
+                <TextBlock Style="{StaticResource Hint}" Text="When off, only the primary monitor is dimmed."/>
+                <CheckBox Style="{StaticResource CB}" Content="Undim on desktop click" IsChecked="{Binding UndimOnDesktop, Mode=TwoWay}" Margin="0,8,0,4"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Temporarily removes all dimming when you click the desktop wallpaper."/>
+
+                <Separator Style="{StaticResource Sep}"/>
+
+                <TextBlock Style="{StaticResource H}" Text="BRIGHTNESS"/>
+                <Grid Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="BrightnessSlider" Grid.Column="0" Style="{StaticResource Sldr}" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="5" LargeChange="10" VerticalAlignment="Center" Value="{Binding Brightness, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold" Text="{Binding ElementName=BrightnessSlider, Path=Value, StringFormat={}{0:0}%}"/>
+                </Grid>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="Higher = brighter (less dimming effect on background windows)."/>
+
+                <Separator Style="{StaticResource Sep}"/>
+
+                <TextBlock Style="{StaticResource H}" Text="WINDOW SHADE"/>
+                <CheckBox Style="{StaticResource CB}" Content="Window shade enabled" IsChecked="{Binding WindowShadeEnabled, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Manually apply a dark overlay to any individual window — useful for apps with no dark mode. Unlike dimming, the overlay stays on the chosen window regardless of focus."/>
+                <Grid Margin="20,5,0,3">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="#313244" CornerRadius="3" Padding="6,2" Margin="0,0,8,0"><TextBlock Text="Win + Alt + S" Foreground="#89B4FA" FontSize="10" FontFamily="Consolas"/></Border>
+                    <TextBlock Grid.Column="1" Text="Toggle shade on/off for the current window" Foreground="#6C7086" FontSize="11" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid Margin="20,3,0,3">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="#313244" CornerRadius="3" Padding="6,2" Margin="0,0,8,0"><TextBlock Text="Win + Alt + A" Foreground="#89B4FA" FontSize="10" FontFamily="Consolas"/></Border>
+                    <TextBlock Grid.Column="1" Text="Draw a custom shade region on the current window" Foreground="#6C7086" FontSize="11" VerticalAlignment="Center"/>
+                </Grid>
+
+                <Separator Style="{StaticResource Sep}"/>
+
+                <TextBlock Style="{StaticResource H}" Text="BEHAVIOUR"/>
+                <CheckBox Style="{StaticResource CB}" Content="Active on launch" IsChecked="{Binding ActiveOnLaunch, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Start dimming automatically when the app launches."/>
+                <CheckBox Style="{StaticResource CB}" Content="Start minimized to tray" IsChecked="{Binding StartMinimized, Mode=TwoWay}" Margin="0,8,0,4"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Launch without showing this window. Reopen via the tray icon."/>
+                <CheckBox Style="{StaticResource CB}" Content="Minimize to tray" IsChecked="{Binding MinimizeToTray, Mode=TwoWay}" Margin="0,8,0,4"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Clicking Minimize hides the window to the tray instead of the taskbar."/>
+                <CheckBox Style="{StaticResource CB}" Content="Close to tray" IsChecked="{Binding CloseToTray, Mode=TwoWay}" Margin="0,8,0,4"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Clicking the window's X button hides to tray instead of exiting. Uncheck to exit the app when the window is closed."/>
+
+                <Separator Style="{StaticResource Sep}"/>
+
+                <TextBlock Style="{StaticResource H}" Text="HOTKEYS"/>
+                <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Toggle dimming" Foreground="#CDD6F4" FontSize="12" VerticalAlignment="Center"/>
+                    <Border Grid.Column="1" Background="#313244" CornerRadius="4" Padding="8,3"><TextBlock Text="Ctrl + Win + Alt + D" Foreground="#89B4FA" FontSize="10" FontFamily="Consolas"/></Border>
+                </Grid>
+                <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Pin / unpin window (keep undimmed)" Foreground="#CDD6F4" FontSize="12" VerticalAlignment="Center"/>
+                    <Border Grid.Column="1" Background="#313244" CornerRadius="4" Padding="8,3"><TextBlock Text="Win + Shift + D" Foreground="#89B4FA" FontSize="10" FontFamily="Consolas"/></Border>
+                </Grid>
+                <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Toggle window shade" Foreground="#CDD6F4" FontSize="12" VerticalAlignment="Center"/>
+                    <Border Grid.Column="1" Background="#313244" CornerRadius="4" Padding="8,3"><TextBlock Text="Win + Alt + S" Foreground="#89B4FA" FontSize="10" FontFamily="Consolas"/></Border>
+                </Grid>
+                <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Custom shade area" Foreground="#CDD6F4" FontSize="12" VerticalAlignment="Center"/>
+                    <Border Grid.Column="1" Background="#313244" CornerRadius="4" Padding="8,3"><TextBlock Text="Win + Alt + A" Foreground="#89B4FA" FontSize="10" FontFamily="Consolas"/></Border>
+                </Grid>
+
+                <Separator Style="{StaticResource Sep}"/>
+                <TextBlock Text="PowerDimmer  ·  github.com/FlukieL/PowerDimmer" Foreground="#45475A" FontSize="10" Margin="0,4,0,8"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Style="{StaticResource Btn}" Content="Close" Click="CloseButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
