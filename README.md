@@ -2,6 +2,11 @@
 
 A simple distraction dimmer for Windows. Dims entire screen except for active/focused window.
 
+| [<img src="https://user-images.githubusercontent.com/79330/147771591-853256ae-f4f1-42d3-8c68-ea467febeb58.png" width="800" />](https://user-images.githubusercontent.com/79330/147771591-853256ae-f4f1-42d3-8c68-ea467febeb58.png) |
+| :--: |
+| *Dim everything but focused window* |
+
+
 > **[⬇ Download PowerDimmer.exe](https://github.com/FlukieL/PowerDimmer/releases/download/production/PowerDimmer.exe)** — self-contained, no .NET runtime required, Windows 10/11 x64
 
 ## **About this fork**
@@ -46,10 +51,6 @@ All settings are saved immediately to `%APPDATA%\PowerDimmer\settings.json` (i.e
 * Adjust brightness level from the system tray context menu or the Settings window
 * Toggle shade for a specific window via `Win + Alt + S`, useful for that one bright screen without dark mode
 * Shade an area of a window via `Win + Alt + A` then select the area to shade. The shade will move with the window
-
-| [<img src="https://user-images.githubusercontent.com/79330/147771591-853256ae-f4f1-42d3-8c68-ea467febeb58.png" width="800" />](https://user-images.githubusercontent.com/79330/147771591-853256ae-f4f1-42d3-8c68-ea467febeb58.png) |
-| :--: |
-| *Dim everything but focused window* |
 
 | [<img src="https://user-images.githubusercontent.com/79330/147770555-5efe9efc-88e1-438e-a559-47b5f495976b.png" width="800" />](https://user-images.githubusercontent.com/79330/147770555-5efe9efc-88e1-438e-a559-47b5f495976b.png) |
 | :--: |
