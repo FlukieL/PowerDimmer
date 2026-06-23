@@ -2,6 +2,8 @@
 
 A simple distraction dimmer for Windows. Dims entire screen except for active/focused window.
 
+> **[⬇ Download PowerDimmer.exe](https://github.com/FlukieL/PowerDimmer/releases/download/production/PowerDimmer.exe)** — self-contained, no .NET runtime required, Windows 10/11 x64
+
 ## **About this fork**
 This is a fork of [shayne/PowerDimmer](https://github.com/shayne/PowerDimmer). The original had a bug where dimming didn't work on external monitors in mixed-DPI setups ([issue #4](https://github.com/shayne/PowerDimmer/issues/4)), and I wanted a couple of extra features. No commits have been made to the original repo in 2+ years, so I fixed and extended it (and by that I mean Claude fixed and extended it :-). Just did this for personal use. Not tested on any PCs except my own and haven't checked if the changes affect resource usage compared to the original, so YMMV.
 
