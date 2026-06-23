@@ -19,6 +19,7 @@ namespace PowerDimmer
         private List<DimWindow> dimWindows { get; } = new();
         private List<WindowShade> shadeWindows { get; } = new();
         private SortedSet<IntPtr> pinnedHandles { get; } = new();
+        private TitleBarShade? titleBarShade;
         static Func<int, double> brightnessToOpacity = (b) => 1 - (b / 100.0);
 
         static GCHandle GCSafetyHandleForActive;
@@ -88,6 +89,16 @@ namespace PowerDimmer
                     {
                         dimOff();
                         dimOn(curFgHwnd);
+                    }
+                }
+                else if (e.PropertyName == nameof(settings.DimTitleBar))
+                {
+                    if (settings.DimmingEnabled)
+                    {
+                        if (settings.DimTitleBar)
+                            ShowTitleBarShade(curFgHwnd);
+                        else
+                            HideTitleBarShade();
                     }
                 }
             };
@@ -226,16 +237,49 @@ namespace PowerDimmer
                 dimWindows.Add(win);
             }
 
+            if (settings.DimTitleBar)
+                ShowTitleBarShade(fgHwnd);
+
             UpdateDimming(fgHwnd);
         }
 
         private void dimOff()
         {
+            HideTitleBarShade();
             dimWindows.ForEach(w => w.Close());
             dimWindows.Clear();
             // the following maintains the proper
             // foreground window upon disabling
             Win32.SetForegroundWindow(curFgHwnd);
+        }
+
+        private void ShowTitleBarShade(IntPtr fgHwnd)
+        {
+            if (fgHwnd == IntPtr.Zero) return;
+
+            // If the shade is already tracking this exact window, leave it
+            // in place — no need to destroy/recreate, which would cause a
+            // visible flash (e.g. EVENT_SYSTEM_FOREGROUND firing on a title-bar
+            // click of the already-focused window).
+            if (titleBarShade != null && titleBarShade.TargetHandle == fgHwnd)
+                return;
+
+            var opacity = brightnessToOpacity(settings.Brightness);
+            // Show the new shade BEFORE closing the old one so there is no
+            // visible gap between the two during window transitions.
+            var next = new TitleBarShade(fgHwnd) { Opacity = opacity };
+            next.Show();
+            titleBarShade?.Close();
+            titleBarShade = next;
+        }
+
+        private void HideTitleBarShade()
+        {
+            if (titleBarShade != null)
+            {
+                titleBarShade.Close();
+                titleBarShade = null;
+            }
         }
 
         // https://stackoverflow.com/questions/4372055/detect-active-window-changed-using-c-sharp-without-polling/10280800#10280800
@@ -252,12 +296,15 @@ namespace PowerDimmer
                         dimmingPaused = false;
                         dimWindows.ForEach(w => w.Show());
                     }
+                    if (settings.DimTitleBar)
+                        ShowTitleBarShade(hwnd);
                     UpdateDimming(hwnd);
                 }
                 else if (settings.UndimOnDesktop && Win32.IsDesktopWindow(hwnd))
                 {
                     dimmingPaused = true;
                     dimWindows.ForEach(w => w.Hide());
+                    HideTitleBarShade();
                 }
             }
             if (settings.WindowShadeEnabled)
@@ -294,8 +341,19 @@ namespace PowerDimmer
 
         private void UpdateDimming(IntPtr fgHwnd)
         {
-            // Set the incoming/foreground handle as TOP...
+            // Place the title-bar shade as TOPMOST so the OS can never raise
+            // fgHwnd above it (e.g. on title-bar click). The shade covers only
+            // the caption area and has WS_EX_TRANSPARENT + WS_EX_NOACTIVATE so
+            // all mouse input passes through to fgHwnd unobstructed.
+            if (titleBarShade != null)
+            {
+                Win32.SetWindowPos(titleBarShade.Handle, Win32.HWND_TOPMOST,
+                    0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
+            }
+
+            // Set the incoming/foreground handle as TOP of the non-topmost stack.
             Win32.SetWindowPos(fgHwnd, Win32.HWND_TOP, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
+
             IntPtr? firstPinned = null;
             foreach (var pinHandle in pinnedHandles)
             {
@@ -378,6 +436,9 @@ namespace PowerDimmer
 
         [Option(Alias = "dimTaskbar", DefaultValue = true)]
         bool DimTaskbar { get; set; }
+
+        [Option(Alias = "dimTitleBar", DefaultValue = false)]
+        bool DimTitleBar { get; set; }
 
         [Option(Alias = "undimOnDesktop", DefaultValue = false)]
         bool UndimOnDesktop { get; set; }

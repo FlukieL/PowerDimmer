@@ -18,6 +18,7 @@ This is a fork of [shayne/PowerDimmer](https://github.com/shayne/PowerDimmer). T
 - Added "Dim all monitors?" toggle — optionally limit dimming to the primary monitor only
 - Upgraded from .NET 6 to .NET 8 (LTS)
 - **Added a settings GUI** — a dark-themed WPF window accessible from the tray icon or by double-clicking it (see below)
+- **Added "Dim title bar of focused window"** — applies a semi-transparent dark overlay to just the caption/title-bar area of the currently focused window, so it blends visually with the dimmed background rather than standing out at full brightness. Follows the window as it moves or resizes. Note: may not align correctly on apps with non-standard or custom-drawn title bars (e.g. borderless, Electron, or heavily themed windows).
 
 ---
 
@@ -32,7 +33,7 @@ The window provides:
 
 | Section | Controls |
 |---|---|
-| **Dimming** | Toggle dimming on/off, dim taskbar, dim all monitors, undim on desktop click |
+| **Dimming** | Toggle dimming on/off, dim taskbar, dim title bar of focused window, dim all monitors, undim on desktop click |
 | **Brightness** | Slider (0 – 100 %) with live readout |
 | **Window Shade** | Enable/disable the window shade feature |
 | **Startup** | Active on launch toggle |
