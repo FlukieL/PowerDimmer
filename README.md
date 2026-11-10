@@ -82,5 +82,3 @@ dotnet publish /p:PublishProfile=SingleFileExe
 ```
 
 The publish profile (`Properties/PublishProfiles/SingleFileExe.pubxml`) creates a compressed, self-contained `win-x64` executable — just copy `publish\PowerDimmer.exe` to a supported Windows 10/11 x64 machine and run it. The framework-dependent release requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
-
-The runtime upgrade and reduced overlay work are not guarantees of higher game performance. Compare frame times and 1% lows with dimming enabled and disabled on the same system.
