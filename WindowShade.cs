@@ -16,9 +16,10 @@ namespace PowerDimmer
     {
         public IntPtr Handle;
         IntPtr _targetHandle;
-        static Win32.WinEventDelegate eventMovedDelegate = null;
+        private Win32.WinEventDelegate eventMovedDelegate;
         private Win32.RECT rect;
-        static GCHandle GCSafetyHandle;
+        private GCHandle GCSafetyHandle;
+        private Win32.RECT? lastBounds;
         private IntPtr eventHook;
         public IntPtr TargetHandle { get { return _targetHandle; } }
         private bool isLocalPos = false;
@@ -54,7 +55,7 @@ namespace PowerDimmer
                 uint pid = Win32.GetProcessId(_targetHandle);
                 uint targetThreadId = Win32.GetWindowThreadProcessId(_targetHandle, IntPtr.Zero);
                 eventHook = Win32.SetWinEventHook((uint)Win32.SWEH_Events.EVENT_OBJECT_LOCATIONCHANGE, (uint)Win32.SWEH_Events.EVENT_OBJECT_LOCATIONCHANGE,
-                                      _targetHandle, eventMovedDelegate, pid, targetThreadId, Win32.WINEVENT_OUTOFCONTEXT);
+                                      IntPtr.Zero, eventMovedDelegate, pid, targetThreadId, Win32.WINEVENT_OUTOFCONTEXT);
             }
 
         }
@@ -89,13 +90,13 @@ namespace PowerDimmer
                 uint pid = Win32.GetProcessId(_targetHandle);
                 uint targetThreadId = Win32.GetWindowThreadProcessId(_targetHandle, IntPtr.Zero);
                 eventHook = Win32.SetWinEventHook((uint)Win32.SWEH_Events.EVENT_OBJECT_LOCATIONCHANGE, (uint)Win32.SWEH_Events.EVENT_OBJECT_LOCATIONCHANGE,
-                                      _targetHandle, eventMovedDelegate, pid, targetThreadId, Win32.WINEVENT_OUTOFCONTEXT);
+                                      IntPtr.Zero, eventMovedDelegate, pid, targetThreadId, Win32.WINEVENT_OUTOFCONTEXT);
             }
         }
 
         public void WinEventMovedProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
-            if (hwnd != _targetHandle)
+            if (hwnd != _targetHandle || idObject != 0 || idChild != 0 || Handle == IntPtr.Zero)
                 return;
             rect = Win32.GetWindowRectangle(_targetHandle);
             SetPosAndHeight(rect);
@@ -103,16 +104,22 @@ namespace PowerDimmer
 
         private void SetPosAndHeight(Win32.RECT rect)
         {
-            if(!isLocalPos)
-                Win32.MoveWindow(Handle, rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top, false);
-            else
-            {
-                int left = (int)(rect.Left + _left);
-                int top = (int)(rect.Top + _top);
-                int width = (int)(_width);
-                int height = (int)(_height);
-                Win32.MoveWindow(Handle, left, top, width, height, false);
-            }
+            if (Handle == IntPtr.Zero)
+                return;
+
+            int left = isLocalPos ? (int)(rect.Left + _left) : rect.Left;
+            int top = isLocalPos ? (int)(rect.Top + _top) : rect.Top;
+            int width = isLocalPos ? (int)_width : rect.Right - rect.Left;
+            int height = isLocalPos ? (int)_height : rect.Bottom - rect.Top;
+            var bounds = new Win32.RECT { Left = left, Top = top, Right = left + width, Bottom = top + height };
+
+            if (lastBounds is Win32.RECT previous &&
+                previous.Left == bounds.Left && previous.Top == bounds.Top &&
+                previous.Right == bounds.Right && previous.Bottom == bounds.Bottom)
+                return;
+
+            if (Win32.MoveWindow(Handle, left, top, width, height, false) != 0)
+                lastBounds = bounds;
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -131,11 +138,14 @@ namespace PowerDimmer
             base.OnClosing(e);
             if(!e.Cancel)
             {
+                if (eventHook != IntPtr.Zero)
+                {
+                    Win32.UnhookWinEvent(eventHook);
+                }
                 if(GCSafetyHandle.IsAllocated)
                 {
                     GCSafetyHandle.Free();
                 }
-                Win32.UnhookWinEvent(eventHook);
             }
         }
     }

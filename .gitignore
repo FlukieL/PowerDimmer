@@ -36,8 +36,9 @@ msbuild.log
 msbuild.err
 msbuild.wrn
 
-# Publish output (single-file exe)
+# Publish output and locally packaged releases
 publish/
+/release-*/
 
 # Visual Studio 2015
 .vs/

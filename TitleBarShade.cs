@@ -17,10 +17,11 @@ namespace PowerDimmer
         public IntPtr Handle;
         private readonly IntPtr _targetHandle;
 
-        // Static so the delegate is not garbage-collected while the hook is active.
-        private static Win32.WinEventDelegate? _eventMovedDelegate;
-        private static GCHandle _gcSafetyHandle;
+        // Each shade owns its hook and keeps its callback alive until it is unhooked.
+        private Win32.WinEventDelegate? _eventMovedDelegate;
+        private GCHandle _gcSafetyHandle;
         private IntPtr _eventHook;
+        private Win32.RECT? _lastBounds;
 
         public IntPtr TargetHandle => _targetHandle;
 
@@ -48,7 +49,7 @@ namespace PowerDimmer
                 _eventHook = Win32.SetWinEventHook(
                     (uint)Win32.SWEH_Events.EVENT_OBJECT_LOCATIONCHANGE,
                     (uint)Win32.SWEH_Events.EVENT_OBJECT_LOCATIONCHANGE,
-                    _targetHandle, _eventMovedDelegate, pid, targetThreadId,
+                    IntPtr.Zero, _eventMovedDelegate, pid, targetThreadId,
                     Win32.WINEVENT_OUTOFCONTEXT);
             }
         }
@@ -57,11 +58,17 @@ namespace PowerDimmer
         public void WinEventMovedProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
             int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
-            if (hwnd != _targetHandle || Handle == IntPtr.Zero)
+            if (hwnd != _targetHandle || idObject != 0 || idChild != 0 || Handle == IntPtr.Zero)
                 return;
 
             var r = Win32.GetTitleBarRect(_targetHandle);
-            Win32.MoveWindow(Handle, r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top, false);
+            if (_lastBounds is Win32.RECT previous &&
+                previous.Left == r.Left && previous.Top == r.Top &&
+                previous.Right == r.Right && previous.Bottom == r.Bottom)
+                return;
+
+            if (Win32.MoveWindow(Handle, r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top, false) != 0)
+                _lastBounds = r;
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -79,9 +86,10 @@ namespace PowerDimmer
             if (_targetHandle != IntPtr.Zero)
             {
                 var r = Win32.GetTitleBarRect(_targetHandle);
-                Win32.SetWindowPos(Handle, Win32.HWND_TOPMOST,
+                if (Win32.SetWindowPos(Handle, Win32.HWND_TOPMOST,
                     r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top,
-                    Win32.SWP_NOACTIVATE);
+                    Win32.SWP_NOACTIVATE))
+                    _lastBounds = r;
             }
 
             Win32.ShowWindow(Handle, Win32.SW_SHOWNORMAL);
@@ -93,11 +101,11 @@ namespace PowerDimmer
             base.OnClosing(e);
             if (!e.Cancel)
             {
-                if (_gcSafetyHandle.IsAllocated)
-                    _gcSafetyHandle.Free();
-
                 if (_eventHook != IntPtr.Zero)
                     Win32.UnhookWinEvent(_eventHook);
+
+                if (_gcSafetyHandle.IsAllocated)
+                    _gcSafetyHandle.Free();
             }
         }
     }

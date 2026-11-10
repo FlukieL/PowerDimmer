@@ -7,7 +7,7 @@ A simple distraction dimmer for Windows. Dims entire screen except for active/fo
 | *Dim everything but focused window* |
 
 
-> **[⬇ Download PowerDimmer.exe](https://github.com/FlukieL/PowerDimmer/releases/download/production/PowerDimmer.exe)** — self-contained, no .NET runtime required, Windows 10/11 x64
+> **[⬇ Download PowerDimmer](https://github.com/FlukieL/PowerDimmer/releases)** — Windows 10/11 x64. The portable ZIP is self-contained; the smaller ZIP requires the .NET 10 Desktop Runtime.
 
 ## **About this fork**
 This is a fork of [shayne/PowerDimmer](https://github.com/shayne/PowerDimmer). The original had a bug where dimming didn't work on external monitors in mixed-DPI setups ([issue #4](https://github.com/shayne/PowerDimmer/issues/4)), and I wanted a couple of extra features. No commits have been made to the original repo in 2+ years, so I fixed and extended it (and by that I mean Claude fixed and extended it :-). Just did this for personal use. Not tested on any PCs except my own and haven't checked if the changes affect resource usage compared to the original, so YMMV.
@@ -16,7 +16,7 @@ This is a fork of [shayne/PowerDimmer](https://github.com/shayne/PowerDimmer). T
 - Fixed multi-monitor dimming on mixed-DPI setups (uses Win32 pixel coordinates instead of WPF DIPs)
 - Added "Undim on desktop click" option — click the desktop wallpaper to temporarily remove all dimming
 - Added "Dim all monitors?" toggle — optionally limit dimming to the primary monitor only
-- Upgraded from .NET 6 to .NET 8 (LTS)
+- Upgraded to .NET 10 (LTS); shade trackers filter unrelated accessibility events and avoid redundant overlay moves
 - **Added a settings GUI** — a dark-themed WPF window accessible from the tray icon or by double-clicking it (see below)
 - **Added "Dim title bar of focused window"** — applies a semi-transparent dark overlay to just the caption/title-bar area of the currently focused window, so it blends visually with the dimmed background rather than standing out at full brightness. Follows the window as it moves or resizes. Note: may not align correctly on apps with non-standard or custom-drawn title bars (e.g. borderless, Electron, or heavily themed windows).
 
@@ -70,7 +70,7 @@ All settings are saved immediately to `%APPDATA%\PowerDimmer\settings.json` (i.e
 
 ## Building & Running
 
-Install the [.NET 8.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0), then:
+Install the [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0), then:
 
 ```bash
 # Run directly
@@ -81,4 +81,6 @@ dotnet publish /p:PublishProfile=SingleFileExe
 # Output: publish\PowerDimmer.exe
 ```
 
-The publish profile (`Properties/PublishProfiles/SingleFileExe.pubxml`) creates a compressed, self-contained `win-x64` executable — just copy `publish\PowerDimmer.exe` to any Windows 10/11 machine and run it.
+The publish profile (`Properties/PublishProfiles/SingleFileExe.pubxml`) creates a compressed, self-contained `win-x64` executable — just copy `publish\PowerDimmer.exe` to a supported Windows 10/11 x64 machine and run it. The framework-dependent release requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
+
+The runtime upgrade and reduced overlay work are not guarantees of higher game performance. Compare frame times and 1% lows with dimming enabled and disabled on the same system.

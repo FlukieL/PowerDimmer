@@ -309,7 +309,7 @@ namespace PowerDimmer
                     HideTitleBarShade();
                 }
             }
-            if (settings.WindowShadeEnabled)
+            if (settings.WindowShadeEnabled && shadeWindows.Count != 0)
             {
                 var whwnd = Win32.GetForegroundWindow();
                 WindowShade windowShade = shadeWindows.SingleOrDefault(s => s.TargetHandle == whwnd);
@@ -389,15 +389,18 @@ namespace PowerDimmer
             }
         }
 
-        private void UpdateShade(IntPtr shadedHwnd, WindowShade windowShade)
+        private async void UpdateShade(IntPtr shadedHwnd, WindowShade windowShade)
         {
             // Set the window shade handle as TOP...
             Win32.SetWindowPos(windowShade.Handle, Win32.HWND_TOPMOST, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
-            //delay making it not top because the window seems to end up on top immediatly afterwards
-            Task.Run(() => 
+            // Allow the target window to settle without blocking a thread-pool thread.
+            await Task.Delay(500);
+            await Dispatcher.InvokeAsync(() =>
             {
-                System.Threading.Thread.Sleep(500);
-                Win32.SetWindowPos(windowShade.Handle, Win32.HWND_NOTOPMOST, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE); 
+                if (shadeWindows.Contains(windowShade))
+                {
+                    Win32.SetWindowPos(windowShade.Handle, Win32.HWND_NOTOPMOST, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
+                }
             });
         }
 
