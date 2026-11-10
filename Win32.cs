@@ -284,6 +284,13 @@ namespace PowerDimmer
         [DllImport("user32.dll")]
         internal static extern uint SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
 
+        public const int SM_CYCAPTION    = 4;
+        public const int SM_CYSIZEFRAME  = 33;
+        public const int SM_CXSIZEFRAME  = 32;
+
+        [DllImport("user32.dll")]
+        public static extern int GetSystemMetrics(int nIndex);
+
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         struct WNDCLASSEX
         {

@@ -49,6 +49,18 @@ namespace PowerDimmer
                         })
                         .AddHandler(b => settings.DimTaskbar = b))
                     .AddToggle(option => option
+                        .SetText("Dim title bar")
+                        .SetChecked(settings.DimTitleBar)
+                        .ConfigureItem(item =>
+                        {
+                            settings.PropertyChanged += (_, e) =>
+                            {
+                                if (e.PropertyName == nameof(settings.DimTitleBar))
+                                    item.Checked = settings.DimTitleBar;
+                            };
+                        })
+                        .AddHandler(b => settings.DimTitleBar = b))
+                    .AddToggle(option => option
                         .SetText("Dim all monitors")
                         .SetChecked(settings.MultiMonitorDimming)
                         .ConfigureItem(item =>

@@ -188,5 +188,53 @@ namespace PowerDimmer
                 out Win32.RECT rect, Marshal.SizeOf<Win32.RECT>());
             return rect;
         }
+
+        /// <summary>
+        /// Returns the screen-space bounding rect of the title bar (caption area)
+        /// for <paramref name="hWnd"/>.
+        /// Uses <c>DWMWA_CAPTION_BUTTON_BOUNDS</c> (window-relative) to get the
+        /// actual rendered caption height, with a system-metrics fallback.
+        /// </summary>
+        public static Win32.RECT GetTitleBarRect(IntPtr hWnd)
+        {
+            // Visible (DWM) frame rect – no invisible glass margins.
+            Win32.DwmGetWindowAttribute(hWnd,
+                Win32.DWMWINDOWATTRIBUTE.DWMWA_EXTENDED_FRAME_BOUNDS,
+                out Win32.RECT frame, Marshal.SizeOf<Win32.RECT>());
+
+            // Full window rect including DWM invisible margins (origin for
+            // window-relative coordinates returned by DWM attributes).
+            Win32.GetWindowRect(hWnd, out Win32.RECT windowRect);
+
+            // Caption button bounds in window-relative coordinates.
+            // DWMWA_CAPTION_BUTTON_BOUNDS = 5 (already in the enum).
+            Win32.DwmGetWindowAttribute(hWnd,
+                Win32.DWMWINDOWATTRIBUTE.DWMWA_CAPTION_BUTTON_BOUNDS,
+                out Win32.RECT captionBounds, Marshal.SizeOf<Win32.RECT>());
+
+            // Convert to screen coords: captionBounds is relative to windowRect origin.
+            // Add 1 pixel to include the bottom border of the caption area which
+            // DWMWA_CAPTION_BUTTON_BOUNDS does not account for.
+            int titleBarBottom = windowRect.Top + captionBounds.Bottom + 1;
+
+            // Fallback when DWMWA_CAPTION_BUTTON_BOUNDS returns a zero rect
+            // (non-DWM windows, tool windows, etc.).
+            if (titleBarBottom <= frame.Top)
+            {
+                int captionHeight = Win32.GetSystemMetrics(Win32.SM_CYCAPTION);
+                var style = GetWindowLong(hWnd, Win32.GWL_STYLE);
+                bool hasThickFrame = (style & (int)Win32.WS_THICKFRAME) != 0;
+                int frameHeight = hasThickFrame ? Win32.GetSystemMetrics(Win32.SM_CYSIZEFRAME) : 0;
+                titleBarBottom = frame.Top + captionHeight + frameHeight;
+            }
+
+            return new Win32.RECT
+            {
+                Left   = frame.Left,
+                Top    = frame.Top,
+                Right  = frame.Right,
+                Bottom = titleBarBottom,
+            };
+        }
     }
 }

@@ -49,6 +49,8 @@
                         <ToolTip><TextBlock Text="Keeps the taskbar below the dim overlay. May have no effect on Windows 11 due to taskbar rendering changes." MaxWidth="280" TextWrapping="Wrap"/></ToolTip>
                     </CheckBox.ToolTip>
                 </CheckBox>
+                <CheckBox Style="{StaticResource CB}" Content="Dim title bar of focused window" IsChecked="{Binding DimTitleBar, Mode=TwoWay}" Margin="0,4"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Applies a dim overlay to the title bar (caption area) of the currently focused window, so it blends with the dimmed background. Note: may not cover correctly on apps with non-standard or custom-drawn title bars (e.g. borderless, Electron, or heavily themed windows)."/>
                 <CheckBox Style="{StaticResource CB}" Content="Dim all monitors" IsChecked="{Binding MultiMonitorDimming, Mode=TwoWay}" Margin="0,4"/>
                 <TextBlock Style="{StaticResource Hint}" Text="When off, only the primary monitor is dimmed."/>
                 <CheckBox Style="{StaticResource CB}" Content="Undim on desktop click" IsChecked="{Binding UndimOnDesktop, Mode=TwoWay}" Margin="0,8,0,4"/>
