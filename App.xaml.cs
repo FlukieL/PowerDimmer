@@ -23,6 +23,8 @@ namespace PowerDimmer
 
         static GCHandle GCSafetyHandleForActive;
         static GCHandle GCSafetyHandleForClose;
+        private IntPtr foregroundHook;
+        private IntPtr closeHook;
 
         public App()
         {
@@ -201,12 +203,12 @@ namespace PowerDimmer
 
             var eventDelegate = new Win32.WinEventDelegate(WinEventProc);
             GCSafetyHandleForActive = GCHandle.Alloc(eventDelegate);
-            Win32.SetWinEventHook(Win32.EVENT_SYSTEM_FOREGROUND, Win32.EVENT_SYSTEM_FOREGROUND,
+            foregroundHook = Win32.SetWinEventHook(Win32.EVENT_SYSTEM_FOREGROUND, Win32.EVENT_SYSTEM_FOREGROUND,
                                   IntPtr.Zero, eventDelegate, 0, 0, Win32.WINEVENT_OUTOFCONTEXT);
 
             var eventClosedDelegate = new Win32.WinEventDelegate(WinCloseEventProc);
             GCSafetyHandleForClose = GCHandle.Alloc(eventClosedDelegate);
-            Win32.SetWinEventHook(Win32.SWEH_Events.EVENT_OBJECT_DESTROY, Win32.SWEH_Events.EVENT_OBJECT_DESTROY,
+            closeHook = Win32.SetWinEventHook(Win32.SWEH_Events.EVENT_OBJECT_DESTROY, Win32.SWEH_Events.EVENT_OBJECT_DESTROY,
                                   IntPtr.Zero, eventClosedDelegate, 0, 0, Win32.WINEVENT_OUTOFCONTEXT);
         }
 
@@ -272,7 +274,15 @@ namespace PowerDimmer
         }
         public void WinCloseEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
-            if (settings.WindowShadeEnabled)
+            // Accessibility object destruction is raised system-wide, often at high
+            // frequency. Only react to an actual window being destroyed.
+            if (hwnd == IntPtr.Zero || idObject != 0 || idChild != 0)
+            {
+                return;
+            }
+
+            pinnedHandles.Remove(hwnd);
+            if (shadeWindows.Count != 0)
             {
                 WindowShade windowShade = shadeWindows.SingleOrDefault(s => s.TargetHandle == hwnd);
                 if(windowShade != null)
@@ -282,7 +292,7 @@ namespace PowerDimmer
                 }
             }
 
-            if(settings.DimTaskbar)
+            if (settings.DimmingEnabled && settings.DimTaskbar && hwnd == curFgHwnd)
             {
                 IntPtr taskbarHwnd = Win32.FindWindow("Shell_TrayWnd", null);
                 if (taskbarHwnd != IntPtr.Zero)
@@ -357,6 +367,14 @@ namespace PowerDimmer
         protected override void OnExit(ExitEventArgs e)
         {
             base.OnExit(e);
+            if (foregroundHook != IntPtr.Zero)
+            {
+                Win32.UnhookWinEvent(foregroundHook);
+            }
+            if (closeHook != IntPtr.Zero)
+            {
+                Win32.UnhookWinEvent(closeHook);
+            }
             if(GCSafetyHandleForActive.IsAllocated)
             {
                 GCSafetyHandleForActive.Free();

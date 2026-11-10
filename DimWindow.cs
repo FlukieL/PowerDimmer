@@ -37,5 +37,6 @@ namespace PowerDimmer
 
             base.OnSourceInitialized(e);
         }
+
     }
 }

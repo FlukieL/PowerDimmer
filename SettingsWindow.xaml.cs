@@ -8,6 +8,7 @@ namespace PowerDimmer
     public partial class SettingsWindow : Window
     {
         private readonly ISettings _settings;
+        private bool _exiting;
 
         private static readonly SolidColorBrush GreenBrush = new(Color.FromRgb(0xA6, 0xE3, 0xA1));
         private static readonly SolidColorBrush GrayBrush  = new(Color.FromRgb(0x45, 0x47, 0x5A));
@@ -17,7 +18,7 @@ namespace PowerDimmer
             InitializeComponent();
             _settings = settings;
             DataContext = settings;
-
+            VersionText.Text = $"Version {typeof(App).Assembly.GetName().Version?.ToString(2) ?? "1.2"}";
             // Set initial status indicator state
             UpdateStatusIndicator(_settings.DimmingEnabled);
 
@@ -60,6 +61,12 @@ namespace PowerDimmer
             Hide();
         }
 
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            _exiting = true;
+            Application.Current.Shutdown();
+        }
+
         protected override void OnStateChanged(EventArgs e)
         {
             // Minimize to tray: hide instead of minimizing to taskbar
@@ -72,7 +79,7 @@ namespace PowerDimmer
 
         protected override void OnClosing(CancelEventArgs e)
         {
-            if (_settings.CloseToTray)
+            if (_settings.CloseToTray && !_exiting)
             {
                 // Hide to tray rather than destroying the window
                 e.Cancel = true;
@@ -82,8 +89,13 @@ namespace PowerDimmer
             {
                 // Let the window close and shut down the application
                 e.Cancel = false;
-                Application.Current.Shutdown();
+                if (!_exiting)
+                {
+                    _exiting = true;
+                    Application.Current.Shutdown();
+                }
             }
+            base.OnClosing(e);
         }
     }
 }
