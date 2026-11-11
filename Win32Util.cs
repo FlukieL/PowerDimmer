@@ -11,22 +11,22 @@ namespace PowerDimmer
         //   https://github.com/microsoft/PowerToys/blob/fa3a5f80a113568155d9c2dbbcea8af16e15afa1/src/common/utils/process_path.h#L10
         public static String GetProcessPath(uint pid)
         {
-            var process = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, true, pid);
-            var name = new StringBuilder();
-            if (process != INVALID_HANDLE_VALUE)
-            {
-                name.Capacity = MAX_PATH;
-                var nameLength = name.Capacity;
+            var process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (process == IntPtr.Zero)
+                return string.Empty;
 
-                if (QueryFullProcessImageName(process, 0, name, ref nameLength) == false)
-                {
-                    nameLength = 0;
-                }
-                name.Clear();
-                name.Capacity = 0;
+            try
+            {
+                var name = new StringBuilder(32768);
+                var length = name.Capacity;
+                return QueryFullProcessImageName(process, 0, name, ref length)
+                    ? name.ToString()
+                    : string.Empty;
+            }
+            finally
+            {
                 CloseHandle(process);
             }
-            return name.ToString();
         }
 
         // from:
@@ -39,8 +39,7 @@ namespace PowerDimmer
             var name = GetProcessPath(pid);
 
             // TODO: debug this substring
-            if (name.Length >= appFrameHost.Length &&
-                appFrameHost == name.Substring(name.Length - appFrameHost.Length, appFrameHost.Length))
+            if (name.EndsWith(appFrameHost, StringComparison.OrdinalIgnoreCase))
             {
                 // It is a UWP app. We will enumerate the windows and look for one created
                 // by something with a different PID
@@ -66,6 +65,7 @@ namespace PowerDimmer
                 {
                     return GetProcessPath(newPid);
                 }
+                return string.Empty;
             }
 
             return name;
@@ -153,9 +153,8 @@ namespace PowerDimmer
             {
                 return false;
             }
-            var processPath = GetProcessPath(window);
             if (className.ToString() == "Windows.UI.Core.CoreWindow" &&
-            processPath.EndsWith("SearchUI.exe"))
+                GetProcessPath(window).EndsWith("SearchUI.exe", StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -163,6 +162,26 @@ namespace PowerDimmer
             return true;
         }
         
+        public static System.Collections.Generic.List<IntPtr> GetOpenWindows()
+        {
+            var windows = new System.Collections.Generic.List<IntPtr>();
+            EnumWindows((hwnd, _) =>
+            {
+                if (IsStandardWindow(hwnd) &&
+                    GetProcessId(hwnd) != (uint)Environment.ProcessId)
+                    windows.Add(hwnd);
+                return true;
+            }, IntPtr.Zero);
+            return windows;
+        }
+
+        public static string GetWindowTitle(IntPtr hwnd)
+        {
+            var text = new StringBuilder(1024);
+            GetWindowText(hwnd, text, text.Capacity);
+            return text.ToString();
+        }
+
         public static uint GetProcessId(IntPtr window)
         {
             uint pid;

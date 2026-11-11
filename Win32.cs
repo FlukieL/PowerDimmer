@@ -17,6 +17,7 @@ namespace PowerDimmer
         public const uint WS_DISABLED = 0x08000000;
         public const int GWL_EXSTYLE = -20;
         public const int WS_EX_LAYERED = 0x80000;
+        public const int WS_EX_TOPMOST = 0x00000008;
         public const int WS_EX_TOOLWINDOW = 0x00000080;
         public const int WS_EX_TRANSPARENT = 0x20;
         public const int WS_EX_NOACTIVATE = 0x08000000;
@@ -56,6 +57,25 @@ namespace PowerDimmer
         public static extern IntPtr SetForegroundWindow(IntPtr hWnd);
 
         public const uint GW_OWNER = 4;
+
+        public delegate bool EnumWindowsCallback(IntPtr hwnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr lParam);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern int GetWindowText(IntPtr hwnd, StringBuilder text, int maxCount);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsWindow(IntPtr hwnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsIconic(IntPtr hwnd);
+
+        public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);

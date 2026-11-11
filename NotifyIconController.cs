@@ -28,7 +28,6 @@ namespace PowerDimmer
                         .SetChecked(settings.DimmingEnabled)
                         .ConfigureItem(item =>
                         {
-                            item.ShortcutKeyDisplayString = "Ctrl+Win+Alt+D";
                             settings.PropertyChanged += (_, e) =>
                             {
                                 if (e.PropertyName == nameof(settings.DimmingEnabled))

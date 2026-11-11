@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using Config.Net;
-using NHotkey.Wpf;
 
 namespace PowerDimmer
 {
@@ -18,7 +17,7 @@ namespace PowerDimmer
         private ISettings settings;
         private List<DimWindow> dimWindows { get; } = new();
         private List<WindowShade> shadeWindows { get; } = new();
-        private SortedSet<IntPtr> pinnedHandles { get; } = new();
+        private DimmingExceptions exceptions = null!;
         private TitleBarShade? titleBarShade;
         static Func<int, double> brightnessToOpacity = (b) => 1 - (b / 100.0);
 
@@ -26,6 +25,9 @@ namespace PowerDimmer
         static GCHandle GCSafetyHandleForClose;
         private IntPtr foregroundHook;
         private IntPtr closeHook;
+        private IntPtr showHook;
+        private Win32.WinEventDelegate? showCallback;
+        private HotkeyService? hotkeys;
 
         public App()
         {
@@ -67,6 +69,8 @@ namespace PowerDimmer
             }
 
             settings = new ConfigurationBuilder<ISettings>().UseJsonFile(settingsPath).Build();
+            exceptions = new DimmingExceptions(settings);
+            exceptions.Changed += RefreshExceptions;
             settings.DimmingEnabled = settings.ActiveOnLaunch;
             settings.PropertyChanged += (s, e) =>
             {
@@ -110,7 +114,7 @@ namespace PowerDimmer
         {
             curFgHwnd = Win32.GetForegroundWindow();
 
-            var settingsWindow = new SettingsWindow(settings);
+            var settingsWindow = new SettingsWindow(settings, exceptions);
             // Show the window on launch unless the user has opted to start minimized
             if (!settings.StartMinimized)
             {
@@ -137,30 +141,23 @@ namespace PowerDimmer
                 iconController.NotifyIcon.Dispose();
             };
 
-            HotkeyManager.Current.AddOrReplace("PowerDimmerHotkey", Key.D, ModifierKeys.Windows | ModifierKeys.Control | ModifierKeys.Alt, true, (s, e) =>
+            var shortcutActions = new List<Action>();
+            shortcutActions.Add(() =>
             {
                 settings.DimmingEnabled = !settings.DimmingEnabled;
             });
 
-            HotkeyManager.Current.AddOrReplace("DimToggleHotkey", Key.D, ModifierKeys.Windows | ModifierKeys.Shift, true, (s, e) =>
+            shortcutActions.Add(() =>
             {
                 if (!settings.DimmingEnabled)
                 {
                     return;
                 }
 
-                var hwnd = Win32.GetForegroundWindow();
-                if (pinnedHandles.Contains(hwnd))
-                {
-                    pinnedHandles.Remove(hwnd);
-                }
-                else
-                {
-                    pinnedHandles.Add(hwnd);
-                }
+                exceptions.ToggleWindow(Win32.GetForegroundWindow());
             });
 
-            HotkeyManager.Current.AddOrReplace("ShadeToggleHotkey", Key.S, ModifierKeys.Windows | ModifierKeys.Alt, true, (s, e) =>
+            shortcutActions.Add(() =>
             {
                 if (!settings.WindowShadeEnabled)
                 {
@@ -187,7 +184,7 @@ namespace PowerDimmer
                 }
             });
 
-            HotkeyManager.Current.AddOrReplace("CustomShadeHotkey", Key.A, ModifierKeys.Windows | ModifierKeys.Alt, true, (s, e) =>
+            shortcutActions.Add(() =>
             {
                 if (!settings.WindowShadeEnabled)
                 {
@@ -207,6 +204,11 @@ namespace PowerDimmer
                 customShade.Show();
             });
 
+            hotkeys = new HotkeyService(settings, shortcutActions.ToArray());
+            settingsWindow.AttachHotkeys(hotkeys);
+            if (!string.IsNullOrEmpty(hotkeys.StartupErrors))
+                MessageBox.Show(hotkeys.StartupErrors, "Hotkey registration", MessageBoxButton.OK, MessageBoxImage.Warning);
+
             if (settings.ActiveOnLaunch)
             {
                 dimOn(curFgHwnd);
@@ -221,6 +223,11 @@ namespace PowerDimmer
             GCSafetyHandleForClose = GCHandle.Alloc(eventClosedDelegate);
             closeHook = Win32.SetWinEventHook(Win32.SWEH_Events.EVENT_OBJECT_DESTROY, Win32.SWEH_Events.EVENT_OBJECT_DESTROY,
                                   IntPtr.Zero, eventClosedDelegate, 0, 0, Win32.WINEVENT_OUTOFCONTEXT);
+
+            showCallback = WinShowEventProc;
+            showHook = Win32.SetWinEventHook((uint)Win32.SWEH_Events.EVENT_OBJECT_SHOW,
+                (uint)Win32.SWEH_Events.EVENT_OBJECT_SHOW, IntPtr.Zero, showCallback, 0, 0,
+                (uint)Win32.SWEH_dwFlags.WINEVENT_SKIPOWNPROCESS);
         }
 
         private void dimOn(IntPtr fgHwnd)//creates a dim window on each screen
@@ -247,6 +254,7 @@ namespace PowerDimmer
 
         private void dimOff()
         {
+            dimmingPaused = false;
             HideTitleBarShade();
             dimWindows.ForEach(w => w.Close());
             dimWindows.Clear();
@@ -257,7 +265,11 @@ namespace PowerDimmer
 
         private void ShowTitleBarShade(IntPtr fgHwnd)
         {
-            if (fgHwnd == IntPtr.Zero) return;
+            if (fgHwnd == IntPtr.Zero || exceptions.IsException(fgHwnd))
+            {
+                HideTitleBarShade();
+                return;
+            }
 
             // If the shade is already tracking this exact window, leave it
             // in place — no need to destroy/recreate, which would cause a
@@ -288,9 +300,12 @@ namespace PowerDimmer
         // https://docs.microsoft.com/en-us/windows/win32/winauto/event-constants
         public void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
+            if (hwnd != Win32.GetForegroundWindow())
+                return;
+
             if (settings.DimmingEnabled)
             {
-                if (Win32.IsStandardWindow(hwnd) && Win32.HasNoVisibleOwner(hwnd))
+                if (Win32.IsStandardWindow(hwnd))
                 {
                     curFgHwnd = hwnd;
                     if (dimmingPaused)
@@ -328,7 +343,7 @@ namespace PowerDimmer
                 return;
             }
 
-            pinnedHandles.Remove(hwnd);
+            exceptions.RemoveWindow(hwnd);
             if (shadeWindows.Count != 0)
             {
                 WindowShade windowShade = shadeWindows.SingleOrDefault(s => s.TargetHandle == hwnd);
@@ -349,6 +364,30 @@ namespace PowerDimmer
             }
         }
 
+        private void WinShowEventProc(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
+        {
+            if (hwnd == IntPtr.Zero || idObject != 0 || idChild != 0 ||
+                !settings.DimmingEnabled || dimmingPaused || !exceptions.HasApplicationRules)
+                return;
+
+            if (Win32.IsStandardWindow(hwnd) && exceptions.IsApplicationException(hwnd))
+                Dispatcher.BeginInvoke(new Action(RefreshExceptions));
+        }
+
+        private void RefreshExceptions()
+        {
+            if (!settings.DimmingEnabled || dimmingPaused || dimWindows.Count == 0)
+                return;
+
+            var foreground = Win32.GetForegroundWindow();
+            if (foreground == IntPtr.Zero || !Win32.IsWindow(foreground))
+                return;
+
+            if (settings.DimTitleBar)
+                ShowTitleBarShade(foreground);
+            UpdateDimming(foreground);
+        }
+
         private void UpdateDimming(IntPtr fgHwnd)
         {
             // Place the title-bar shade as TOPMOST so the OS can never raise
@@ -361,23 +400,9 @@ namespace PowerDimmer
                     0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
             }
 
-            // Set the incoming/foreground handle as TOP of the non-topmost stack.
-            Win32.SetWindowPos(fgHwnd, Win32.HWND_TOP, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
-
-            IntPtr? firstPinned = null;
-            foreach (var pinHandle in pinnedHandles)
-            {
-                if (pinHandle == fgHwnd) continue; // if pinned but also foreground skip
-                // Place each pinned window under the foreground
-                Win32.SetWindowPos(pinHandle, fgHwnd, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
-                // store the first pinned handle we didn't skip over
-                firstPinned ??= pinHandle;
-            }
-            foreach (var dimWin in dimWindows)
-            {
-                // Finally place the dimmer window behind the first pinned or foreground
-                Win32.SetWindowPos(dimWin.Handle, firstPinned ?? fgHwnd, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
-            }
+            // Preserve the relative z-order of exceptions behind the foreground.
+            var windows = exceptions.HasExceptions ? Win32.GetOpenWindows() : new List<IntPtr>();
+            WindowStacking.Apply(fgHwnd, windows, exceptions.IsException, dimWindows.Select(w => w.Handle));
 
             if(settings.DimTaskbar)
             {
@@ -427,6 +452,7 @@ namespace PowerDimmer
 
         protected override void OnExit(ExitEventArgs e)
         {
+            hotkeys?.Dispose();
             base.OnExit(e);
             if (foregroundHook != IntPtr.Zero)
             {
@@ -435,6 +461,10 @@ namespace PowerDimmer
             if (closeHook != IntPtr.Zero)
             {
                 Win32.UnhookWinEvent(closeHook);
+            }
+            if (showHook != IntPtr.Zero)
+            {
+                Win32.UnhookWinEvent(showHook);
             }
             if(GCSafetyHandleForActive.IsAllocated)
             {
@@ -466,6 +496,12 @@ namespace PowerDimmer
 
         [Option(Alias = "multiMonitorDimming", DefaultValue = true)]
         bool MultiMonitorDimming { get; set; }
+
+        [Option(Alias = "hotkeyBindings", DefaultValue = "")]
+        string HotkeyBindings { get; set; }
+
+        [Option(Alias = "excludedApplications", DefaultValue = "")]
+        string ExcludedApplications { get; set; }
 
         [Option(Alias = "brightness", DefaultValue = 50)]
         int Brightness { get; set; }
